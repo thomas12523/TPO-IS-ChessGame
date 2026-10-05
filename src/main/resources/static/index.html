@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ajedrez</title>
+    <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+<main class="app">
+    <section class="zona-tablero">
+        <div class="capturas" id="capturas-negras" aria-label="Piezas capturadas por las negras"></div>
+        <div class="marco">
+            <div class="tablero" id="tablero" role="grid" aria-label="Tablero de ajedrez"></div>
+        </div>
+        <div class="capturas" id="capturas-blancas" aria-label="Piezas capturadas por las blancas"></div>
+    </section>
+
+    <aside class="panel">
+        <header class="panel-encabezado">
+            <h1>Ajedrez</h1>
+            <button class="boton" id="nueva-partida" type="button">Nueva partida</button>
+        </header>
+
+        <div class="estado" id="estado" aria-live="polite">
+            <span class="ficha-turno" id="ficha-turno"></span>
+            <span id="texto-turno">Cargando…</span>
+        </div>
+        <div class="aviso aviso-jaque" id="aviso-jaque" hidden>¡Jaque!</div>
+        <div class="aviso aviso-error" id="aviso-error" hidden></div>
+
+        <h2>Jugadas</h2>
+        <ol class="historial" id="historial"></ol>
+    </aside>
+</main>
+
+<dialog class="dialogo-promocion" id="dialogo-promocion">
+    <form method="dialog">
+        <p>Coronación: ¿en qué pieza se convierte el peón?</p>
+        <div class="opciones-promocion" id="opciones-promocion"></div>
+    </form>
+</dialog>
+
+<script src="app.js"></script>
+</body>
+</html>
