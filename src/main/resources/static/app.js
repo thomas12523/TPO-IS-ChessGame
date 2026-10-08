@@ -164,9 +164,49 @@ function dibujarCapturas(id, tipos, colorDeLasPiezas) {
     contenedor.querySelectorAll(".pieza").forEach((p) => (p.style.fontSize = "22px"));
 }
 
-function dibujar() {
+function dibujar(jugada = null) {
     dibujarTablero();
     dibujarPanel();
+    if (jugada) animarJugada(jugada);
+}
+
+// ---------- Animación ----------
+
+const DURACION_MS = 260;
+const SUAVIZADO = "cubic-bezier(0.2, 0.8, 0.2, 1)";
+
+function casillaDe(notacion) {
+    return $("tablero").querySelector(`[data-casilla="${notacion}"]`);
+}
+
+// La pieza ya está dibujada en su destino; se la hace "volver" desde el origen hasta su lugar.
+function animarJugada({ origen, destino, capturada }) {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const casillaOrigen = casillaDe(origen);
+    const casillaDestino = casillaDe(destino);
+    const figura = casillaDestino?.querySelector(".pieza");
+    if (!casillaOrigen || !figura) return;
+
+    const desde = casillaOrigen.getBoundingClientRect();
+    const hasta = casillaDestino.getBoundingClientRect();
+    figura.classList.add("en-vuelo");
+    figura.animate(
+        [
+            { transform: `translate(${desde.left - hasta.left}px, ${desde.top - hasta.top}px)` },
+            { transform: "translate(0, 0)" },
+        ],
+        { duration: DURACION_MS, easing: SUAVIZADO },
+    ).onfinish = () => figura.classList.remove("en-vuelo");
+
+    if (capturada) {
+        const fantasma = crearFigura(capturada.tipo, capturada.color);
+        fantasma.classList.add("capturada");
+        casillaDestino.append(fantasma);
+        fantasma.animate(
+            [{ opacity: 1, transform: "scale(1)" }, { opacity: 0, transform: "scale(0.5)" }],
+            { duration: DURACION_MS, easing: "ease-in", fill: "forwards" },
+        ).onfinish = () => fantasma.remove();
+    }
 }
 
 // ---------- Interacción ----------
@@ -205,14 +245,18 @@ async function mover(origen, destino) {
     if (estado.destinos.includes(destino) && esCoronacion(origen, destino)) {
         promocion = await elegirPromocion(piezaEn(origen).color);
     }
+    const capturada = piezaEn(destino);
+    const jugadasAntes = estado.partida.historial.length;
+    let jugada = null;
     try {
         estado.partida = await api.jugar(estado.partida.id, { origen, destino, promocion });
+        if (estado.partida.historial.length > jugadasAntes) jugada = { origen, destino, capturada };
     } catch (error) {
         mostrarError(error.message);
     }
     estado.seleccion = null;
     estado.destinos = [];
-    dibujar();
+    dibujar(jugada);
 }
 
 function elegirPromocion(color) {

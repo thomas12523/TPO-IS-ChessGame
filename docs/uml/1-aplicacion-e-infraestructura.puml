@@ -1,0 +1,144 @@
+@startuml
+title Aplicación e infraestructura
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam nodesep 50
+skinparam ranksep 70
+hide empty members
+
+package "infraestructura" {
+  class PartidaController <<RestController>> {
+    -servicio: IServicioDePartidas
+    --
+    +crear(): PartidaDto
+    +obtener(id: String): PartidaDto
+    +movimientos(id: String, desde: String): DestinosDto
+    +jugar(id: String, jugada: JugadaDto): PartidaDto
+  }
+  class ManejadorDeErrores <<RestControllerAdvice>> {
+    +movimientoInvalido(e): ErrorDto
+    +partidaNoEncontrada(e): ErrorDto
+    +pedidoInvalido(e): ErrorDto
+  }
+  class ConfiguracionDelAjedrez <<Configuration>> {
+    fabricaDeAjedrez(): IFabricaDeAjedrez
+    disposicionInicial(fabrica): IDisposicionInicial
+    reglasDelAjedrez(fabrica): ReglasDelAjedrez
+    servicioDePartidas(repositorio, disposicion, reglas): IServicioDePartidas
+  }
+  class RepositorioDePartidasEnMemoria {
+    -partidas: Map<String, Partida>
+    --
+    +guardar(partida: Partida)
+    +buscar(id: String): Optional<Partida>
+  }
+}
+
+package "errores" {
+  class RuntimeException {
+  }
+  class MovimientoInvalidoException {
+    +MovimientoInvalidoException(motivo: String)
+  }
+  class JugadaInvalidaException {
+    +JugadaInvalidaException(motivo: String, causa: Throwable)
+  }
+  class PartidaNoEncontradaException {
+    +PartidaNoEncontradaException(id: String)
+  }
+}
+
+package "aplicacion" {
+  interface IServicioDePartidas {
+    +crearPartida(): PartidaDto
+    +obtener(id: String): PartidaDto
+    +jugar(id: String, jugada: JugadaDto): PartidaDto
+    +destinosLegales(id: String, origen: String): DestinosDto
+  }
+  class ServicioDePartidas {
+    -repositorio: IRepositorioDePartidas
+    -disposicionInicial: IDisposicionInicial
+    -reglas: ReglasDelAjedrez
+    --
+    +crearPartida(): PartidaDto
+    +obtener(id: String): PartidaDto
+    +jugar(id: String, jugada: JugadaDto): PartidaDto
+    +destinosLegales(id: String, origen: String): DestinosDto
+  }
+  class MapeadorDePartidas <<package-private>> {
+    ~aDto(partida: Partida): PartidaDto
+  }
+  interface IRepositorioDePartidas {
+    +guardar(partida: Partida)
+    +buscar(id: String): Optional<Partida>
+  }
+}
+
+package "aplicacion.dto" {
+  class PartidaDto <<record>> {
+    +id: String
+    +turno: String
+    +enJaque: boolean
+    +reyEnJaque: String
+    +piezas: List<PiezaEnCasillaDto>
+    +historial: List<String>
+    +ultimaJugada: UltimaJugadaDto
+    +capturadasPorBlancas: List<String>
+    +capturadasPorNegras: List<String>
+  }
+  class PiezaEnCasillaDto <<record>> {
+    +casilla: String
+    +tipo: String
+    +color: String
+  }
+  class UltimaJugadaDto <<record>> {
+    +origen: String
+    +destino: String
+  }
+  class JugadaDto <<record>> {
+    +origen: String
+    +destino: String
+    +promocion: String
+  }
+  class DestinosDto <<record>> {
+    +desde: String
+    +destinos: List<String>
+  }
+}
+
+interface IDisposicionInicial #eeeeee
+class ReglasDelAjedrez #eeeeee
+interface IFabricaDeAjedrez #eeeeee
+class ValidadorDeMovimientos #eeeeee
+class Partida #eeeeee
+class FabricaEstandar #eeeeee
+
+IRepositorioDePartidas <|.. RepositorioDePartidasEnMemoria
+IServicioDePartidas <|.. ServicioDePartidas
+RuntimeException <|-- MovimientoInvalidoException
+RuntimeException <|-- JugadaInvalidaException
+RuntimeException <|-- PartidaNoEncontradaException
+PartidaDto "1" *-- "0..*" PiezaEnCasillaDto
+PartidaDto "1" *-- "0..1" UltimaJugadaDto
+PartidaController --> IServicioDePartidas
+ServicioDePartidas --> IRepositorioDePartidas
+ServicioDePartidas --> IDisposicionInicial
+ServicioDePartidas --> ReglasDelAjedrez
+ConfiguracionDelAjedrez --> IFabricaDeAjedrez
+ServicioDePartidas ..> MapeadorDePartidas
+MapeadorDePartidas ..> PartidaDto
+IServicioDePartidas ..> JugadaDto
+IServicioDePartidas ..> DestinosDto
+ServicioDePartidas ..> JugadaInvalidaException
+ServicioDePartidas ..> PartidaNoEncontradaException
+ValidadorDeMovimientos ..> MovimientoInvalidoException
+ManejadorDeErrores ..> JugadaInvalidaException
+ManejadorDeErrores ..> PartidaNoEncontradaException
+RepositorioDePartidasEnMemoria ..> Partida
+IRepositorioDePartidas ..> Partida
+ServicioDePartidas ..> Partida
+MapeadorDePartidas ..> Partida
+ConfiguracionDelAjedrez ..> FabricaEstandar : <<create>>
+ConfiguracionDelAjedrez ..> ServicioDePartidas : <<create>>
+@enduml

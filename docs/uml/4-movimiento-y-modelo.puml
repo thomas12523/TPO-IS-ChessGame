@@ -1,0 +1,155 @@
+@startuml
+title Movimientos y modelo
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam nodesep 50
+skinparam ranksep 70
+hide empty members
+
+package "dominio.movimiento" {
+  interface ICatalogoDeMovimientos {
+    +reglaPara(tipo: TipoPieza): IReglaDeMovimiento
+  }
+  class CatalogoEstandar {
+    -reglas: Map<TipoPieza, IReglaDeMovimiento>
+    --
+    +reglaPara(tipo: TipoPieza): IReglaDeMovimiento
+  }
+  interface IReglaDeMovimiento {
+    +destinos(origen, color, tablero): Set<Posicion>
+    +casillasAtacadas(origen, color, tablero): Set<Posicion>
+  }
+  class MovimientoDePeon {
+    +destinos(origen, color, tablero): Set<Posicion>
+    +casillasAtacadas(origen, color, tablero): Set<Posicion>
+  }
+  class MovimientoDeslizante {
+    -direcciones: List<Desplazamiento>
+    --
+    +destinos(origen, color, tablero): Set<Posicion>
+  }
+  class MovimientoDeSalto {
+    -saltos: List<Desplazamiento>
+    --
+    +destinos(origen, color, tablero): Set<Posicion>
+  }
+  class MovimientoCompuesto {
+    -reglas: List<IReglaDeMovimiento>
+    --
+    +destinos(origen, color, tablero): Set<Posicion>
+    +casillasAtacadas(origen, color, tablero): Set<Posicion>
+  }
+  class Direcciones {
+    +ORTOGONALES: List<Desplazamiento>
+    +DIAGONALES: List<Desplazamiento>
+    +TODAS: List<Desplazamiento>
+    +SALTOS_DE_CABALLO: List<Desplazamiento>
+  }
+}
+
+package "dominio.modelo" {
+  class Tablero {
+    +DIMENSION: int = 8
+    -casillas: Map<Posicion, Pieza>
+    --
+    +vacio(): Tablero
+    +estaDentro(columna, fila): boolean
+    +piezaEn(posicion): Optional<Pieza>
+    +estaVacia(posicion): boolean
+    +hayRivalEn(posicion, color): boolean
+    +colocar(posicion, pieza): Tablero
+    +mover(origen, destino, pieza): Tablero
+    +piezasDe(color): Map<Posicion, Pieza>
+    +todasLasPiezas(): Map<Posicion, Pieza>
+    +ubicacionDe(pieza): Optional<Posicion>
+  }
+  class Pieza <<record>> {
+    +tipo: TipoPieza
+    +color: Color
+    --
+    +es(otroTipo): boolean
+    +esDe(otroColor): boolean
+  }
+  class Posicion <<record>> {
+    +columna: int
+    +fila: int
+    --
+    +de(notacion: String): Posicion
+    +desplazar(d: Desplazamiento): Optional<Posicion>
+    +notacion(): String
+  }
+  class Movimiento <<record>> {
+    +origen: Posicion
+    +destino: Posicion
+    +promocion: TipoPieza
+    --
+    +de(origen, destino): Movimiento
+    +promocionElegida(): Optional<TipoPieza>
+  }
+  class Desplazamiento <<record>> {
+    +columnas: int
+    +filas: int
+  }
+  enum Color {
+    BLANCO
+    NEGRO
+    --
+    +opuesto(): Color
+    +sentidoDeAvance(): int
+  }
+  enum TipoPieza {
+    PEON
+    TORRE
+    CABALLO
+    ALFIL
+    REINA
+    REY
+    --
+    +simbolo(): String
+    +esPromocionable(): boolean
+  }
+}
+
+class ReglasDelAjedrez #eeeeee
+class DetectorDeJaque #eeeeee
+class RespetaElMovimientoDeLaPieza #eeeeee
+class FabricaEstandar #eeeeee
+class Partida #eeeeee
+class IntentoDeMovimiento #eeeeee
+class JugadaRealizada #eeeeee
+interface IEjecutorDeMovimientos #eeeeee
+interface IDetectorDeJaque #eeeeee
+interface IDisposicionInicial #eeeeee
+
+ICatalogoDeMovimientos <|.. CatalogoEstandar
+IReglaDeMovimiento <|.. MovimientoDePeon
+IReglaDeMovimiento <|.. MovimientoDeslizante
+IReglaDeMovimiento <|.. MovimientoDeSalto
+IReglaDeMovimiento <|.. MovimientoCompuesto
+Tablero "1" o-- "0..64" Pieza
+MovimientoCompuesto "1" o-- "1..*" IReglaDeMovimiento
+ReglasDelAjedrez --> ICatalogoDeMovimientos
+DetectorDeJaque --> ICatalogoDeMovimientos
+RespetaElMovimientoDeLaPieza --> ICatalogoDeMovimientos
+Pieza --> TipoPieza
+Pieza --> Color
+Movimiento --> Posicion
+FabricaEstandar ..> CatalogoEstandar : <<create>>
+CatalogoEstandar ..> IReglaDeMovimiento : <<create>>
+MovimientoDeslizante ..> Direcciones
+MovimientoDeSalto ..> Direcciones
+Posicion ..> Desplazamiento
+Partida "1" *-- "1" Tablero
+IntentoDeMovimiento --> Tablero
+IntentoDeMovimiento --> Movimiento
+JugadaRealizada --> Movimiento
+JugadaRealizada --> Pieza
+Movimiento --> TipoPieza
+ICatalogoDeMovimientos ..> IReglaDeMovimiento
+IEjecutorDeMovimientos ..> Tablero
+IDetectorDeJaque ..> Tablero
+IDisposicionInicial ..> Tablero
+IReglaDeMovimiento ..> Tablero
+Direcciones ..> Desplazamiento
+@enduml

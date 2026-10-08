@@ -1,0 +1,85 @@
+@startuml
+title Abstract Factory y partida
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam nodesep 50
+skinparam ranksep 70
+hide empty members
+
+package "dominio.fabrica" {
+  interface IFabricaDeAjedrez {
+    +crearCatalogo(): ICatalogoDeMovimientos
+    +crearDisposicion(): IDisposicionInicial
+    +crearReglas(): ReglasDelAjedrez
+  }
+  class FabricaEstandar {
+    +crearCatalogo(): ICatalogoDeMovimientos
+    +crearDisposicion(): IDisposicionInicial
+    +crearReglas(): ReglasDelAjedrez
+  }
+}
+
+package "dominio.partida" {
+  interface IDisposicionInicial {
+    +preparar(): Tablero
+  }
+  class DisposicionEstandar {
+    -FILA_TRASERA: List<TipoPieza>
+    --
+    +preparar(): Tablero
+  }
+  class Partida {
+    -id: String
+    -tablero: Tablero
+    -turno: Color
+    -historial: List<JugadaRealizada>
+    --
+    +jugar(movimiento: Movimiento): JugadaRealizada
+    +destinosLegales(origen: Posicion): Set<Posicion>
+    +enJaque(): boolean
+    +reyEnJaque(): Optional<Posicion>
+    +capturadasPor(color: Color): List<Pieza>
+  }
+  class JugadaRealizada <<record>> {
+    +movimiento: Movimiento
+    +piezaMovida: Pieza
+    +piezaFinal: Pieza
+    +piezaCapturada: Pieza
+    +dioJaque: boolean
+    --
+    +captura(): Optional<Pieza>
+    +fuePromocion(): boolean
+    +notacion(): String
+  }
+}
+
+class ReglasDelAjedrez #eeeeee
+class ServicioDePartidas #eeeeee
+class ConfiguracionDelAjedrez #eeeeee
+class CatalogoEstandar #eeeeee
+class Tablero #eeeeee
+class Movimiento #eeeeee
+class Pieza #eeeeee
+class RepositorioDePartidasEnMemoria #eeeeee
+interface IRepositorioDePartidas #eeeeee
+class MapeadorDePartidas #eeeeee
+
+IFabricaDeAjedrez <|.. FabricaEstandar
+IDisposicionInicial <|.. DisposicionEstandar
+Partida "1" *-- "0..*" JugadaRealizada
+Partida --> ReglasDelAjedrez
+ServicioDePartidas --> IDisposicionInicial
+ConfiguracionDelAjedrez --> IFabricaDeAjedrez
+FabricaEstandar ..> CatalogoEstandar : <<create>>
+FabricaEstandar ..> DisposicionEstandar : <<create>>
+Partida "1" *-- "1" Tablero
+JugadaRealizada --> Movimiento
+JugadaRealizada --> Pieza
+RepositorioDePartidasEnMemoria ..> Partida
+IRepositorioDePartidas ..> Partida
+ServicioDePartidas ..> Partida
+MapeadorDePartidas ..> Partida
+ConfiguracionDelAjedrez ..> FabricaEstandar : <<create>>
+IDisposicionInicial ..> Tablero
+@enduml

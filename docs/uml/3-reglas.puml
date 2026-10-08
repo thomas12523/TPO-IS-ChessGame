@@ -1,0 +1,120 @@
+@startuml
+title Reglas del juego
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam nodesep 50
+skinparam ranksep 70
+hide empty members
+
+package "dominio.reglas" {
+  class ReglasDelAjedrez <<record>> {
+    +catalogo: ICatalogoDeMovimientos
+    +validador: IValidadorDeMovimientos
+    +ejecutor: IEjecutorDeMovimientos
+    +detector: IDetectorDeJaque
+  }
+  interface IValidadorDeMovimientos {
+    +primeraViolacion(intento): Optional<String>
+    +esValido(intento): boolean
+    +validar(intento)
+  }
+  class ValidadorDeMovimientos {
+    -reglas: List<IReglaDeValidacion>
+    --
+    +primeraViolacion(intento): Optional<String>
+    +esValido(intento): boolean
+    +validar(intento)
+  }
+  interface IReglaDeValidacion {
+    +verificar(intento: IntentoDeMovimiento): Optional<String>
+  }
+  class HayPiezaEnOrigen {
+    +verificar(intento): Optional<String>
+  }
+  class PiezaDelJugadorEnTurno {
+    +verificar(intento): Optional<String>
+  }
+  class RespetaElMovimientoDeLaPieza {
+    -catalogo: ICatalogoDeMovimientos
+    --
+    +verificar(intento): Optional<String>
+  }
+  class PromocionCorrecta {
+    +verificar(intento): Optional<String>
+  }
+  class NoDejaAlReyEnJaque {
+    -ejecutor: IEjecutorDeMovimientos
+    -detector: IDetectorDeJaque
+    --
+    +verificar(intento): Optional<String>
+  }
+  class IntentoDeMovimiento <<record>> {
+    +tablero: Tablero
+    +turno: Color
+    +movimiento: Movimiento
+    --
+    +piezaMovida(): Optional<Pieza>
+  }
+  interface IEjecutorDeMovimientos {
+    +ejecutar(tablero, movimiento): Tablero
+    +piezaQueLlega(pieza, movimiento): Pieza
+  }
+  class EjecutorDeMovimientos {
+    +ejecutar(tablero, movimiento): Tablero
+    +piezaQueLlega(pieza, movimiento): Pieza
+  }
+  interface IDetectorDeJaque {
+    +estaEnJaque(tablero, color): boolean
+    +ubicacionDelRey(tablero, color): Optional<Posicion>
+    +estaAtacada(casilla, atacante, tablero): boolean
+  }
+  class DetectorDeJaque {
+    -catalogo: ICatalogoDeMovimientos
+    --
+    +estaEnJaque(tablero, color): boolean
+    +ubicacionDelRey(tablero, color): Optional<Posicion>
+    +estaAtacada(casilla, atacante, tablero): boolean
+  }
+  class Promocion {
+    +POR_DEFECTO: TipoPieza
+    --
+    +corresponde(pieza, destino): boolean
+  }
+}
+
+class Partida #eeeeee
+interface ICatalogoDeMovimientos #eeeeee
+class ServicioDePartidas #eeeeee
+class Tablero #eeeeee
+class Movimiento #eeeeee
+class MovimientoInvalidoException #eeeeee
+
+IReglaDeValidacion <|.. HayPiezaEnOrigen
+IReglaDeValidacion <|.. PiezaDelJugadorEnTurno
+IReglaDeValidacion <|.. RespetaElMovimientoDeLaPieza
+IReglaDeValidacion <|.. PromocionCorrecta
+IReglaDeValidacion <|.. NoDejaAlReyEnJaque
+IValidadorDeMovimientos <|.. ValidadorDeMovimientos
+IEjecutorDeMovimientos <|.. EjecutorDeMovimientos
+IDetectorDeJaque <|.. DetectorDeJaque
+Partida --> ReglasDelAjedrez
+ValidadorDeMovimientos "1" o-- "1..*" IReglaDeValidacion
+ReglasDelAjedrez --> ICatalogoDeMovimientos
+ReglasDelAjedrez --> IValidadorDeMovimientos
+ReglasDelAjedrez --> IEjecutorDeMovimientos
+ReglasDelAjedrez --> IDetectorDeJaque
+DetectorDeJaque --> ICatalogoDeMovimientos
+RespetaElMovimientoDeLaPieza --> ICatalogoDeMovimientos
+NoDejaAlReyEnJaque --> IEjecutorDeMovimientos
+NoDejaAlReyEnJaque --> IDetectorDeJaque
+ServicioDePartidas --> ReglasDelAjedrez
+EjecutorDeMovimientos ..> Promocion
+PromocionCorrecta ..> Promocion
+IntentoDeMovimiento --> Tablero
+IntentoDeMovimiento --> Movimiento
+IReglaDeValidacion ..> IntentoDeMovimiento
+ValidadorDeMovimientos ..> MovimientoInvalidoException
+IEjecutorDeMovimientos ..> Tablero
+IDetectorDeJaque ..> Tablero
+@enduml

@@ -1,0 +1,352 @@
+@startuml ajedrez
+title Ajedrez — diagrama de clases
+
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam linetype ortho
+hide empty members
+
+' =====================================================================
+' INTERFACES (contratos / puertos)
+' =====================================================================
+package "com.ajedrez.interfaces" <<Frame>> {
+  interface IServicioDePartidas {
+    + crearPartida() : PartidaDto
+    + obtener(id : String) : PartidaDto
+    + jugar(id : String, jugada : JugadaDto) : PartidaDto
+    + destinosLegales(id : String, origen : String) : DestinosDto
+  }
+  interface IRepositorioDePartidas {
+    + guardar(partida : Partida)
+    + buscar(id : String) : Optional<Partida>
+  }
+  interface IFabricaDeAjedrez {
+    + crearCatalogo() : ICatalogoDeMovimientos
+    + crearDisposicion() : IDisposicionInicial
+    + crearReglas() : ReglasDelAjedrez
+  }
+  interface IDisposicionInicial {
+    + preparar() : Tablero
+  }
+  interface ICatalogoDeMovimientos {
+    + reglaPara(tipo : TipoPieza) : IReglaDeMovimiento
+  }
+  interface IReglaDeMovimiento {
+    + destinos(origen : Posicion, color : Color, tablero : Tablero) : Set<Posicion>
+    + casillasAtacadas(origen : Posicion, color : Color, tablero : Tablero) : Set<Posicion>
+  }
+  interface IValidadorDeMovimientos {
+    + primeraViolacion(i : IntentoDeMovimiento) : Optional<String>
+    + esValido(i : IntentoDeMovimiento) : boolean
+    + validar(i : IntentoDeMovimiento)
+  }
+  interface IReglaDeValidacion {
+    + verificar(i : IntentoDeMovimiento) : Optional<String>
+  }
+  interface IEjecutorDeMovimientos {
+    + ejecutar(t : Tablero, m : Movimiento) : Tablero
+    + piezaQueLlega(p : Pieza, m : Movimiento) : Pieza
+  }
+  interface IDetectorDeJaque {
+    + estaEnJaque(t : Tablero, c : Color) : boolean
+    + ubicacionDelRey(t : Tablero, c : Color) : Optional<Posicion>
+    + estaAtacada(casilla : Posicion, atacante : Color, t : Tablero) : boolean
+  }
+}
+
+' =====================================================================
+' DOMINIO
+' =====================================================================
+package "com.ajedrez.dominio" {
+
+  package "modelo" {
+    enum Color {
+      BLANCO
+      NEGRO
+      + sentidoDeAvance() : int
+      + nombre() : String
+      + opuesto() : Color
+    }
+    enum TipoPieza {
+      PEON
+      TORRE
+      CABALLO
+      ALFIL
+      REINA
+      REY
+      + nombre() : String
+      + nombreConArticulo() : String
+      + simbolo() : String
+      + esPromocionable() : boolean
+    }
+    class Pieza <<record>> {
+      tipo : TipoPieza
+      color : Color
+      + es(t : TipoPieza) : boolean
+      + esDe(c : Color) : boolean
+    }
+    class Posicion <<record>> {
+      columna : int
+      fila : int
+      + {static} de(notacion : String) : Posicion
+      + desplazar(d : Desplazamiento) : Optional<Posicion>
+      + notacion() : String
+    }
+    class Desplazamiento <<record>> {
+      columnas : int
+      filas : int
+    }
+    class Movimiento <<record>> {
+      origen : Posicion
+      destino : Posicion
+      promocion : TipoPieza
+      + {static} de(o : Posicion, d : Posicion) : Movimiento
+      + promocionElegida() : Optional<TipoPieza>
+    }
+    class Tablero {
+      + {static} DIMENSION : int = 8
+      - casillas : Map<Posicion, Pieza>
+      + {static} vacio() : Tablero
+      + piezaEn(p : Posicion) : Optional<Pieza>
+      + estaVacia(p : Posicion) : boolean
+      + hayRivalEn(p : Posicion, c : Color) : boolean
+      + colocar(p : Posicion, pieza : Pieza) : Tablero
+      + mover(o : Posicion, d : Posicion, pieza : Pieza) : Tablero
+      + piezasDe(c : Color) : Map<Posicion, Pieza>
+      + ubicacionDe(pieza : Pieza) : Optional<Posicion>
+    }
+  }
+
+  package "movimiento" {
+    class CatalogoEstandar {
+      - reglas : Map<TipoPieza, IReglaDeMovimiento>
+      + reglaPara(tipo : TipoPieza) : IReglaDeMovimiento
+    }
+    class MovimientoDeslizante {
+      - direcciones : List<Desplazamiento>
+    }
+    class MovimientoDeSalto {
+      - saltos : List<Desplazamiento>
+    }
+    class MovimientoDePeon
+    class MovimientoCompuesto {
+      - reglas : List<IReglaDeMovimiento>
+    }
+    class Direcciones <<utility>> {
+      + {static} ORTOGONALES
+      + {static} DIAGONALES
+      + {static} TODAS
+      + {static} SALTOS_DE_CABALLO
+    }
+  }
+
+  package "reglas" {
+    class ReglasDelAjedrez <<record>> {
+      catalogo : ICatalogoDeMovimientos
+      validador : IValidadorDeMovimientos
+      ejecutor : IEjecutorDeMovimientos
+      detector : IDetectorDeJaque
+    }
+    class IntentoDeMovimiento <<record>> {
+      tablero : Tablero
+      turno : Color
+      movimiento : Movimiento
+      + piezaMovida() : Optional<Pieza>
+    }
+    class ValidadorDeMovimientos {
+      - reglas : List<IReglaDeValidacion>
+    }
+    class HayPiezaEnOrigen
+    class PiezaDelJugadorEnTurno
+    class RespetaElMovimientoDeLaPieza
+    class PromocionCorrecta
+    class NoDejaAlReyEnJaque
+    class EjecutorDeMovimientos
+    class DetectorDeJaque
+    class Promocion <<utility>> {
+      + {static} POR_DEFECTO : TipoPieza
+      + {static} corresponde(p : Pieza, destino : Posicion) : boolean
+    }
+  }
+
+  package "partida" {
+    class Partida {
+      - id : String
+      - tablero : Tablero
+      - turno : Color
+      - historial : List<JugadaRealizada>
+      - reglas : ReglasDelAjedrez
+      + jugar(m : Movimiento) : JugadaRealizada
+      + destinosLegales(origen : Posicion) : Set<Posicion>
+      + enJaque() : boolean
+      + reyEnJaque() : Optional<Posicion>
+      + capturadasPor(c : Color) : List<Pieza>
+    }
+    class JugadaRealizada <<record>> {
+      movimiento : Movimiento
+      piezaMovida : Pieza
+      piezaFinal : Pieza
+      piezaCapturada : Pieza
+      dioJaque : boolean
+      + notacion() : String
+    }
+    class DisposicionEstandar
+  }
+
+  package "fabrica" {
+    class FabricaEstandar
+  }
+}
+
+' =====================================================================
+' APLICACIÓN
+' =====================================================================
+package "com.ajedrez.aplicacion" {
+  class ServicioDePartidas {
+    - repositorio : IRepositorioDePartidas
+    - disposicionInicial : IDisposicionInicial
+    - reglas : ReglasDelAjedrez
+  }
+  class MapeadorDePartidas <<utility>> {
+    ~ {static} aDto(p : Partida) : PartidaDto
+  }
+  package "dto" {
+    class PartidaDto <<record>>
+    class JugadaDto <<record>> {
+      origen : String
+      destino : String
+      promocion : String
+    }
+    class DestinosDto <<record>> {
+      desde : String
+      destinos : List<String>
+    }
+  }
+}
+
+' =====================================================================
+' ERRORES
+' =====================================================================
+package "com.ajedrez.errores" {
+  class MovimientoInvalidoException
+  class JugadaInvalidaException
+  class PartidaNoEncontradaException
+  class RuntimeException
+  MovimientoInvalidoException -up-|> RuntimeException
+  JugadaInvalidaException -up-|> RuntimeException
+  PartidaNoEncontradaException -up-|> RuntimeException
+}
+
+' =====================================================================
+' INFRAESTRUCTURA (adaptadores)
+' =====================================================================
+package "com.ajedrez.infraestructura" {
+  class PartidaController <<RestController>> {
+    - servicio : IServicioDePartidas
+    + crear() : PartidaDto
+    + obtener(id) : PartidaDto
+    + movimientos(id, desde) : DestinosDto
+    + jugar(id, jugada : JugadaDto) : PartidaDto
+  }
+  class ManejadorDeErrores <<RestControllerAdvice>>
+  class RepositorioDePartidasEnMemoria <<Repository>> {
+    - partidas : Map<String, Partida>
+  }
+  class ConfiguracionDelAjedrez <<Configuration>>
+}
+
+' =====================================================================
+' RELACIONES
+' =====================================================================
+
+' --- Implementaciones ---
+ServicioDePartidas ..|> IServicioDePartidas
+RepositorioDePartidasEnMemoria ..|> IRepositorioDePartidas
+FabricaEstandar ..|> IFabricaDeAjedrez
+DisposicionEstandar ..|> IDisposicionInicial
+CatalogoEstandar ..|> ICatalogoDeMovimientos
+MovimientoDeslizante ..|> IReglaDeMovimiento
+MovimientoDeSalto ..|> IReglaDeMovimiento
+MovimientoDePeon ..|> IReglaDeMovimiento
+MovimientoCompuesto ..|> IReglaDeMovimiento
+ValidadorDeMovimientos ..|> IValidadorDeMovimientos
+HayPiezaEnOrigen ..|> IReglaDeValidacion
+PiezaDelJugadorEnTurno ..|> IReglaDeValidacion
+RespetaElMovimientoDeLaPieza ..|> IReglaDeValidacion
+PromocionCorrecta ..|> IReglaDeValidacion
+NoDejaAlReyEnJaque ..|> IReglaDeValidacion
+EjecutorDeMovimientos ..|> IEjecutorDeMovimientos
+DetectorDeJaque ..|> IDetectorDeJaque
+
+' --- Infraestructura -> aplicación ---
+PartidaController --> IServicioDePartidas
+ManejadorDeErrores ..> JugadaInvalidaException
+ManejadorDeErrores ..> PartidaNoEncontradaException
+ConfiguracionDelAjedrez ..> IFabricaDeAjedrez : elige FabricaEstandar
+ConfiguracionDelAjedrez ..> ServicioDePartidas : crea
+RepositorioDePartidasEnMemoria o-- "*" Partida
+
+' --- Aplicación ---
+ServicioDePartidas --> IRepositorioDePartidas
+ServicioDePartidas --> IDisposicionInicial
+ServicioDePartidas --> ReglasDelAjedrez
+ServicioDePartidas ..> MapeadorDePartidas
+ServicioDePartidas ..> Partida : crea
+ServicioDePartidas ..> JugadaInvalidaException : lanza
+ServicioDePartidas ..> PartidaNoEncontradaException : lanza
+MapeadorDePartidas ..> PartidaDto
+
+' --- Fábrica (Abstract Factory) ---
+FabricaEstandar ..> CatalogoEstandar : crea
+FabricaEstandar ..> DisposicionEstandar : crea
+FabricaEstandar ..> ReglasDelAjedrez : arma
+
+' --- Partida ---
+Partida *-- "1" Tablero
+Partida *-- "*" JugadaRealizada
+Partida --> "1" Color : turno
+Partida --> "1" ReglasDelAjedrez
+JugadaRealizada --> Movimiento
+JugadaRealizada --> Pieza
+
+' --- Reglas ---
+ReglasDelAjedrez o-- ICatalogoDeMovimientos
+ReglasDelAjedrez o-- IValidadorDeMovimientos
+ReglasDelAjedrez o-- IEjecutorDeMovimientos
+ReglasDelAjedrez o-- IDetectorDeJaque
+ValidadorDeMovimientos o-- "*" IReglaDeValidacion : cadena ordenada
+RespetaElMovimientoDeLaPieza --> ICatalogoDeMovimientos
+NoDejaAlReyEnJaque --> IEjecutorDeMovimientos
+NoDejaAlReyEnJaque --> IDetectorDeJaque
+DetectorDeJaque --> ICatalogoDeMovimientos
+EjecutorDeMovimientos ..> Promocion
+PromocionCorrecta ..> Promocion
+ValidadorDeMovimientos ..> MovimientoInvalidoException : lanza
+IReglaDeValidacion ..> IntentoDeMovimiento
+
+' --- Movimiento (Strategy + Composite) ---
+CatalogoEstandar o-- "6" IReglaDeMovimiento : una por TipoPieza
+MovimientoCompuesto o-- "*" IReglaDeMovimiento : reina = torre + alfil
+MovimientoDeslizante ..> Direcciones
+MovimientoDeSalto ..> Direcciones
+
+' --- Modelo ---
+Tablero o-- "0..64" Pieza
+Tablero ..> Posicion
+Pieza --> TipoPieza
+Pieza --> Color
+Movimiento --> Posicion
+Posicion ..> Desplazamiento
+
+note right of MovimientoCompuesto
+  Composición sobre herencia:
+  no existe "Reina extends Pieza".
+end note
+
+note bottom of ConfiguracionDelAjedrez
+  Raíz de composición: único lugar
+  que conoce implementaciones concretas.
+end note
+
+@enduml
